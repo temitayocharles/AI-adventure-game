@@ -50,8 +50,8 @@ const App: React.FC = () => {
     const fetchWorlds = async () => {
       try {
         const worldsData = await gameAPI.getWorlds();
-        if (worldsData && worldsData.data) {
-          setWorlds(worldsData.data);
+        if (worldsData && worldsData.worlds) {
+          setWorlds(worldsData.worlds);
         } else {
           console.warn('No worlds data received, using empty list');
           setWorlds([]);
