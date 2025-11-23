@@ -50,14 +50,16 @@ const App: React.FC = () => {
     const fetchWorlds = async () => {
       try {
         const worldsData = await gameAPI.getWorlds();
-        if (worldsData && worldsData.worlds) {
+        console.log('🌍 Worlds API response:', worldsData);
+        if (worldsData && worldsData.worlds && worldsData.worlds.length > 0) {
+          console.log('✅ Loaded', worldsData.worlds.length, 'worlds:', worldsData.worlds);
           setWorlds(worldsData.worlds);
         } else {
-          console.warn('No worlds data received, using empty list');
+          console.warn('⚠️ No worlds data received, using empty list');
           setWorlds([]);
         }
       } catch (err) {
-        console.error('Error loading worlds:', err);
+        console.error('❌ Error loading worlds:', err);
         setWorlds([]);
       } finally {
         setIsLoadingWorlds(false);
