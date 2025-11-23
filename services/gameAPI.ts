@@ -29,15 +29,19 @@ export const gameAPI = {
    */
   async getWorlds() {
     try {
+      console.log('📡 Fetching worlds from:', `${API_BASE}/api/v1/worlds`);
       const res = await fetch(`${API_BASE}/api/v1/worlds`);
+      console.log('📦 Response status:', res.status);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
+      console.log('📥 Raw API data:', data);
       
       // Transform each world to match frontend types
       const transformedWorlds = data.worlds.map(transformWorldData);
+      console.log('✨ Transformed worlds:', transformedWorlds);
       return { worlds: transformedWorlds };
     } catch (err) {
-      console.error('Failed to fetch worlds:', err);
+      console.error('❌ Failed to fetch worlds:', err);
       return null;
     }
   },
