@@ -4,6 +4,25 @@
 
 const API_BASE = (import.meta as any).env.VITE_API_BASE || 'http://localhost:4000';
 
+/**
+ * Transform raw API world data to frontend WorldData format
+ */
+function transformWorldData(rawWorld: any) {
+  const meta = rawWorld.meta || {};
+  return {
+    id: String(rawWorld.id),
+    name: rawWorld.name,
+    description: meta.description || `Experience ${rawWorld.name}`,
+    color: meta.color || 'from-blue-400 to-purple-600',
+    baseColor: '#1e293b',
+    weather: (meta.weather || 'clear') as any,
+    season: 'spring' as const,
+    icon: meta.icon || '🌍',
+    levels: [], // Will be loaded separately if needed
+    isLocked: false
+  };
+}
+
 export const gameAPI = {
   /**
    * Fetch all worlds from server
@@ -12,7 +31,11 @@ export const gameAPI = {
     try {
       const res = await fetch(`${API_BASE}/api/v1/worlds`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return await res.json();
+      const data = await res.json();
+      
+      // Transform each world to match frontend types
+      const transformedWorlds = data.worlds.map(transformWorldData);
+      return { worlds: transformedWorlds };
     } catch (err) {
       console.error('Failed to fetch worlds:', err);
       return null;
