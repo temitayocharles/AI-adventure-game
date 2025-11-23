@@ -8,8 +8,8 @@ WORKDIR /app
 # Copy dependency files only (layer caching)
 COPY package*.json ./
 
-# Install dependencies with npm ci (reproducible builds)
-RUN npm ci --only=production && npm cache clean --force
+# Install dependencies (including dev for nodemon)
+RUN npm install && npm cache clean --force
 
 # Copy application code
 COPY --chown=nodejs:nodejs . .
