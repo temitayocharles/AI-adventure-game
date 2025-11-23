@@ -52,7 +52,7 @@ services:
       dockerfile: Dockerfile.client
     container_name: worldhero-client
     environment:
-      VITE_API_BASE: http://worldhero-server:4000
+      VITE_API_BASE: http://localhost:4000
     ports:
       - "5173:5173"
     volumes:
