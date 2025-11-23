@@ -1,0 +1,31 @@
+{
+  "name": "world-hero-server",
+  "version": "0.1.0",
+  "private": true,
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "nodemon --watch ./ --ext js,ts,json --exec node --experimental-specifier-resolution=node index.js",
+    "start": "node index.js",
+    "migrate": "psql $DATABASE_URL -f db/schema.sql",
+    "seed": "psql $DATABASE_URL -f db/seed.sql",
+    "setup": "npm run migrate && npm run seed"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.7.2",
+    "cors": "^2.8.5",
+    "body-parser": "^1.20.2",
+    "pg": "^8.11.0",
+    "dotenv": "^16.3.1",
+    "node-fetch": "^3.4.1",
+    "@google/genai": "^1.30.0",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}

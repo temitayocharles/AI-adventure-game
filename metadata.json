@@ -1,0 +1,7 @@
+{
+  "name": "World Hero Adventures",
+  "description": "A cross-platform educational multiplayer game for kids featuring exploration, crafting, and an AI companion named Sprinkle.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}

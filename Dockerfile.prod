@@ -1,0 +1,50 @@
+# Stage 1: Build frontend
+FROM node:18-alpine as client-builder
+
+WORKDIR /build
+
+COPY package*.json ./
+RUN npm ci
+
+COPY . .
+RUN npm run build
+
+# Stage 2: Prepare server
+FROM node:18-alpine as server-deps
+
+WORKDIR /server
+
+COPY server/package*.json ./
+RUN npm ci --only=production && npm cache clean --force
+
+# Stage 3: Final production image
+FROM node:18-alpine
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+# Copy built client assets
+COPY --from=client-builder /build/dist ./public
+
+# Copy server code and dependencies
+COPY --from=server-deps /server/node_modules ./server/node_modules
+COPY server/ ./server/
+
+# Set permissions
+RUN chown -R nodejs:nodejs /app
+
+# Switch to non-root user
+USER nodejs
+
+WORKDIR /app/server
+
+EXPOSE 4000
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:4000/api/health', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"
+
+CMD ["node", "index.js"]

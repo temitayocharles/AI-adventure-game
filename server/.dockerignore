@@ -1,0 +1,39 @@
+# Dependencies (rebuild in container)
+node_modules/
+
+# Environment files
+.env
+.env.local
+
+# Version control
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Documentation
+README.md
+*.md
+
+# Tests
+tests/
+*.test.js
+*.spec.js
+coverage/
+
+# CI/CD
+.github/
+.gitlab-ci.yml

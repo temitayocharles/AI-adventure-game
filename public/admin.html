@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard - World Hero Adventures</title>
+  <script crossorigin src="https://unpkg.com/react@19/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@19/umd/react-dom.production.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; background: #f5f5f5; }
+    .admin-container { max-width: 1200px; margin: 0 auto; padding: 20px; background: white; min-height: 100vh; }
+    h1 { color: #333; margin-bottom: 30px; font-size: 28px; }
+    .queue-item { border: 1px solid #ddd; padding: 15px; margin-bottom: 15px; border-radius: 8px; background: #fafafa; }
+    .queue-item h3 { color: #333; margin-bottom: 8px; }
+    .queue-item p { color: #666; font-size: 14px; margin-bottom: 10px; }
+    .status-badge { display: inline-block; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+    .status-pending { background: #fff3cd; color: #856404; }
+    .status-approved { background: #d4edda; color: #155724; }
+    .status-rejected { background: #f8d7da; color: #721c24; }
+    .button-group { display: flex; gap: 10px; margin-top: 10px; }
+    button { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; transition: opacity 0.2s; }
+    button:hover { opacity: 0.8; }
+    .btn-approve { background: #28a745; color: white; }
+    .btn-reject { background: #dc3545; color: white; }
+    .btn-flag { background: #ffc107; color: #333; }
+    .info-text { color: #666; font-size: 14px; padding: 15px; background: #f0f0f0; border-radius: 4px; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="admin-container">
+    <h1>🛡️ Moderation Dashboard</h1>
+    <div id="root"></div>
+  </div>
+
+  <script>
+    async function loadModeration() {
+      const apiBase = localStorage.getItem('adminApiBase') || 'http://localhost:4000';
+      const adminKey = localStorage.getItem('adminKey');
+      
+      if (!adminKey) {
+        document.getElementById('root').innerHTML = `
+          <div style="padding: 20px; background: #fff3cd; border-radius: 4px;">
+            <p>⚠️ Admin key required. Set it in localStorage:</p>
+            <code style="background: #f5f5f5; padding: 10px; display: block; margin-top: 10px;">
+              localStorage.setItem('adminKey', 'your-admin-key')
+            </code>
+          </div>
+        `;
+        return;
+      }
+
+      try {
+        const res = await fetch(`${apiBase}/api/v1/moderation/queue`, {
+          headers: { 'x-admin-key': adminKey }
+        });
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        const data = await res.json();
+        const queue = data.queue || [];
+
+        if (queue.length === 0) {
+          document.getElementById('root').innerHTML = '<div class="info-text">✅ No pending items for review</div>';
+          return;
+        }
+
+        let html = queue.map(item => `
+          <div class="queue-item">
+            <h3>${item.item_type === 'drawing' ? '🎨 Drawing' : '💬 Text'}</h3>
+            <p><strong>User:</strong> ${item.user_id || 'anonymous'}</p>
+            <p><strong>Content:</strong> ${item.content_preview || 'N/A'}</p>
+            <span class="status-badge status-${item.status}">${item.status}</span>
+            <div class="button-group">
+              <button class="btn-approve" onclick="approveItem('${item.id}', '${adminKey}')">✓ Approve</button>
+              <button class="btn-reject" onclick="rejectItem('${item.id}', '${adminKey}')">✗ Reject</button>
+              <button class="btn-flag" onclick="flagItem('${item.id}', '${adminKey}')">🚩 Flag</button>
+            </div>
+          </div>
+        `).join('');
+
+        document.getElementById('root').innerHTML = html;
+      } catch (err) {
+        document.getElementById('root').innerHTML = `<div class="info-text">❌ Error loading queue: ${err.message}</div>`;
+      }
+    }
+
+    async function approveItem(id, adminKey) {
+      const apiBase = localStorage.getItem('adminApiBase') || 'http://localhost:4000';
+      try {
+        const res = await fetch(`${apiBase}/api/v1/moderation/review`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-admin-key': adminKey },
+          body: JSON.stringify({ itemId: id, status: 'approved' })
+        });
+        if (res.ok) { alert('✓ Approved'); loadModeration(); }
+        else throw new Error(`HTTP ${res.status}`);
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
+    }
+
+    async function rejectItem(id, adminKey) {
+      const apiBase = localStorage.getItem('adminApiBase') || 'http://localhost:4000';
+      try {
+        const res = await fetch(`${apiBase}/api/v1/moderation/review`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-admin-key': adminKey },
+          body: JSON.stringify({ itemId: id, status: 'rejected' })
+        });
+        if (res.ok) { alert('✗ Rejected'); loadModeration(); }
+        else throw new Error(`HTTP ${res.status}`);
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
+    }
+
+    async function flagItem(id, adminKey) {
+      const apiBase = localStorage.getItem('adminApiBase') || 'http://localhost:4000';
+      try {
+        const res = await fetch(`${apiBase}/api/v1/moderation/flag`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-admin-key': adminKey },
+          body: JSON.stringify({ itemId: id, reason: 'manual_flag' })
+        });
+        if (res.ok) { alert('🚩 Flagged'); loadModeration(); }
+        else throw new Error(`HTTP ${res.status}`);
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
+    }
+
+    loadModeration();
+    // Refresh every 30 seconds
+    setInterval(loadModeration, 30000);
+  </script>
+</body>
+</html>

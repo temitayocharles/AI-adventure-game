@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: worldhero-postgres-prod
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme123}
+      POSTGRES_DB: worldhero
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+      - ./server/db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./server/db/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d worldhero"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - worldhero-prod-network
+    restart: unless-stopped
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    container_name: worldhero-prod
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: postgresql://postgres:${DB_PASSWORD:-changeme123}@postgres:5432/worldhero
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      AI_MODEL: gemini-2.5-flash
+      JWT_SECRET: ${JWT_SECRET}
+      ADMIN_KEY: ${ADMIN_KEY}
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost}
+    ports:
+      - "80:4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - worldhero-prod-network
+    restart: unless-stopped
+
+volumes:
+  postgres_prod_data:
+
+networks:
+  worldhero-prod-network:
+    driver: bridge

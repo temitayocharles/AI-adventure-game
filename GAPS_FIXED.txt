@@ -1,0 +1,80 @@
+GAPS FIXED - November 22, 2025
+═══════════════════════════════════════════════════════════════════
+
+✅ CRITICAL GAPS RESOLVED:
+
+1. Server .env File
+   - Created: server/.env with development defaults
+   - DATABASE_URL: postgresql://postgres:password@localhost:5432/worldhero
+   - GEMINI_API_KEY: dev placeholder (fill in with real key)
+   - All required vars: JWT_SECRET, ADMIN_KEY, FRONTEND_ORIGIN
+   
+2. Removed @google/genai from Client Bundle
+   - Deleted: @google/genai from package.json dependencies
+   - Size saved: ~200KB from bundle
+   - Reason: All AI calls now via server proxy (security + efficiency)
+   
+3. Added Error Handling to AI Proxy
+   - Enhanced: services/geminiProxy.ts with try/catch
+   - Offline fallback: Returns user-friendly message if server unreachable
+   - No silent failures
+   
+4. Admin Dashboard Now Accessible
+   - Added: Admin button to App.tsx navbar
+   - Created: public/admin.html (standalone moderation interface)
+   - Features: View queue, approve/reject/flag content
+   - Auth: Uses x-admin-key header (set via localStorage)
+
+─────────────────────────────────────────────────────────────────
+
+DATABASE SETUP (Self-Managed Container)
+
+For Local Development:
+  1. Start Docker container:
+     docker-compose up -d postgres
+  
+  2. Initialize schema + seed data:
+     docker exec -i worldhero-postgres psql -U postgres -d worldhero < server/db/schema.sql
+     docker exec -i worldhero-postgres psql -U postgres -d worldhero < server/db/seed.sql
+  
+  3. Or use convenience script:
+     docker-compose up --build  (auto-initializes via volumes)
+
+For Production (Self-Managed):
+  - Use docker-compose.prod.yml (Postgres included)
+  - Database persists in docker volume: worldhero_postgres_data
+  - No external subscriptions needed
+
+─────────────────────────────────────────────────────────────────
+
+UNCHANGED (Not Problems):
+
+• Socket.io Multiplayer Code
+  - Used by backend for future multiplayer features
+  - Not currently exposed in UI, but not dead code
+  - Ready for implementation when needed
+  
+• Multiple Dockerfiles
+  - Dockerfile.client: Development with hot reload
+  - server/Dockerfile: Backend service
+  - Dockerfile.prod: Production optimized image
+  - By design for dev vs prod configurations
+
+─────────────────────────────────────────────────────────────────
+
+STARTUP CHECKLIST:
+
+[ ] 1. npm install                              (client deps)
+[ ] 2. cd server && npm install                 (server deps)
+[ ] 3. docker-compose up -d postgres            (start database)
+[ ] 4. Create server/.env                       (add GEMINI_API_KEY)
+[ ] 5. cd server && npm run dev                 (start API)
+[ ] 6. npm run dev                              (start client)
+[ ] 7. Visit http://localhost:5173
+
+Admin Dashboard:
+  - Click "Admin" button in navbar
+  - Set admin key: localStorage.setItem('adminKey', 'dev-admin-key-change-in-production')
+  - Review flagged content from /api/v1/moderation/queue
+
+═══════════════════════════════════════════════════════════════════

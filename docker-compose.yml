@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: worldhero-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: worldhero_dev_password
+      POSTGRES_DB: worldhero
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./server/db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./server/db/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d worldhero"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - worldhero-network
+
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: worldhero-server
+    environment:
+      NODE_ENV: development
+      PORT: 4000
+      DATABASE_URL: postgresql://postgres:worldhero_dev_password@postgres:5432/worldhero
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-placeholder_key_change_me}
+      AI_MODEL: gemini-2.5-flash
+      JWT_SECRET: dev_secret_change_in_production
+      ADMIN_KEY: dev_admin_key_change_in_production
+      FRONTEND_ORIGIN: http://localhost:5173
+    ports:
+      - "4000:4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./server:/app
+      - /app/node_modules
+    networks:
+      - worldhero-network
+    command: npm run dev
+
+  client:
+    build:
+      context: .
+      dockerfile: Dockerfile.client
+    container_name: worldhero-client
+    environment:
+      VITE_API_BASE: http://localhost:4000
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./:/app
+      - /app/node_modules
+    networks:
+      - worldhero-network
+    command: npm run dev
+
+volumes:
+  postgres_data:
+
+networks:
+  worldhero-network:
+    driver: bridge
