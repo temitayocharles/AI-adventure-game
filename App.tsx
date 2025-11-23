@@ -1,10 +1,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { ViewState, UserProfile, LevelData, AvatarConfig, GameSettings, WorldData, CraftingRecipe } from './types';
-import { INITIAL_USER, WORLDS, RECIPES } from './services/mockData';
+import { INITIAL_USER, RECIPES } from './services/mockData';
 import { loadUser, saveUser } from './services/storageService';
 import { playSfx } from './services/soundService';
 import { querySprinkle } from './services/geminiProxy';
+import { gameAPI } from './services/gameAPI';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Button } from './components/Button';
 import { ParentalGate } from './components/ParentalGate';
@@ -37,17 +38,34 @@ const App: React.FC = () => {
   // New Feature States
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoadingWorlds, setIsLoadingWorlds] = useState(true);
+  const [worlds, setWorlds] = useState<WorldData[]>([]);
   const [lastCraftState, setLastCraftState] = useState<{ inventory: string[], materials: any } | null>(null);
   const [showAdmin, setShowAdmin] = useState(false);
 
   useEffect(() => {
     const loadedUser = loadUser();
     setUser(loadedUser);
-    // Simulate world data fetching with Skeleton
-    setTimeout(() => {
-      setIsLoadingWorlds(false);
-      setView(ViewState.WORLD_MAP);
-    }, 1500);
+    
+    // Fetch worlds from API
+    const fetchWorlds = async () => {
+      try {
+        const worldsData = await gameAPI.getWorlds();
+        if (worldsData && worldsData.data) {
+          setWorlds(worldsData.data);
+        } else {
+          console.warn('No worlds data received, using empty list');
+          setWorlds([]);
+        }
+      } catch (err) {
+        console.error('Error loading worlds:', err);
+        setWorlds([]);
+      } finally {
+        setIsLoadingWorlds(false);
+        setView(ViewState.WORLD_MAP);
+      }
+    };
+    
+    fetchWorlds();
   }, []);
 
   useEffect(() => {
@@ -133,13 +151,13 @@ const App: React.FC = () => {
       const newCompleted = Array.from(new Set([...prev.completedLevels, activeLevel.id]));
       const nextUnlockedWorlds = [...prev.unlockedWorlds];
       
-      const currentWorld = WORLDS.find(w => w.id === activeLevel.worldId);
+      const currentWorld = worlds.find(w => w.id === activeLevel.worldId);
       if (currentWorld) {
         const idx = currentWorld.levels.findIndex(l => l.id === activeLevel.id);
         if (idx === currentWorld.levels.length - 1) {
-           const nextWorldIdx = WORLDS.findIndex(w => w.id === currentWorld.id) + 1;
-           if (WORLDS[nextWorldIdx] && !nextUnlockedWorlds.includes(WORLDS[nextWorldIdx].id)) {
-              nextUnlockedWorlds.push(WORLDS[nextWorldIdx].id);
+           const nextWorldIdx = worlds.findIndex(w => w.id === currentWorld.id) + 1;
+           if (worlds[nextWorldIdx] && !nextUnlockedWorlds.includes(worlds[nextWorldIdx].id)) {
+              nextUnlockedWorlds.push(worlds[nextWorldIdx].id);
            }
         }
       }
@@ -242,7 +260,7 @@ const App: React.FC = () => {
   };
 
   // --- Search Logic ---
-  const filteredWorlds = WORLDS.filter(w => 
+  const filteredWorlds = worlds.filter(w => 
     w.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
     w.description.toLowerCase().includes(searchQuery.toLowerCase())
   );
