@@ -3,9 +3,10 @@
  * Handles authentication, world/level loading, and progression tracking
  */
 
-const API_BASE =
-  (import.meta as any)?.env?.VITE_API_BASE?.replace(/\/+$/, '') ||
-  'http://localhost:4000';
+// Use relative URL if on HTTPS to avoid mixed content errors
+const API_BASE = window.location.protocol === 'https:' 
+  ? '/api/v1'
+  : ((import.meta as any)?.env?.VITE_API_BASE?.replace(/\/+$/, '') || 'http://localhost:4000') + '/api/v1';
 
 const TOKEN_KEY = 'world_hero_jwt_token';
 const PLAYER_ID_KEY = 'world_hero_player_id';
@@ -101,7 +102,7 @@ export const gameAPI = {
    * POST /api/v1/auth/demo-login
    */
   async loginDemo(username: string) {
-    const url = `${API_BASE}/api/v1/auth/demo-login`;
+    const url = `${API_BASE}/auth/demo-login`;
     console.log('🔐 Demo login:', username);
 
     try {
@@ -175,7 +176,7 @@ export const gameAPI = {
    * GET /api/v1/worlds
    */
   async getWorlds() {
-    const url = `${API_BASE}/api/v1/worlds`;
+    const url = `${API_BASE}/worlds`;
     console.log('📡 Fetching worlds from:', url);
 
     try {
@@ -210,11 +211,9 @@ export const gameAPI = {
    * Protected: requires JWT token
    */
   async getPlayerLevels(worldId?: string | number) {
-    const url = worldId 
-      ? `${API_BASE}/api/v1/players/me/levels?worldId=${worldId}`
-      : `${API_BASE}/api/v1/players/me/levels`;
-    
-    console.log(`📡 Fetching player levels: ${url}`);
+    const url = worldId
+      ? `${API_BASE}/players/me/levels?worldId=${worldId}`
+      : `${API_BASE}/players/me/levels`;    console.log(`📡 Fetching player levels: ${url}`);
 
     try {
       const res = await fetch(url, {
@@ -280,7 +279,7 @@ export const gameAPI = {
    * Protected: requires JWT token
    */
   async getPlayerProgress() {
-    const url = `${API_BASE}/api/v1/players/me/progress`;
+    const url = `${API_BASE}/players/me/progress`;
     console.log('📋 Fetching player progress:', url);
 
     try {
@@ -339,7 +338,7 @@ export const gameAPI = {
    * Save game state (legacy, for backward compatibility)
    */
   async saveGameState(userId: string, state: any) {
-    const url = `${API_BASE}/api/v1/game-state/save`;
+    const url = `${API_BASE}/game-state/save`;
     console.log('💾 Saving game state to:', url);
 
     try {
@@ -361,7 +360,7 @@ export const gameAPI = {
    * Load game state (legacy, for backward compatibility)
    */
   async loadGameState(userId: string) {
-    const url = `${API_BASE}/api/v1/game-state/load?userId=${userId}`;
+    const url = `${API_BASE}/game-state/load?userId=${userId}`;
     console.log('📡 Loading game state from:', url);
 
     try {

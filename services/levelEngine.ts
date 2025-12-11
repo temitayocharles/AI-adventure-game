@@ -140,12 +140,6 @@ export class LevelEngine {
     // Start game loop
     this.app.ticker.add(() => this.update());
     console.log('✅ Game loop started');
-    
-    // Force initial render
-    setTimeout(() => {
-      this.app.render();
-      console.log('✅ Initial render complete');
-    }, 100);
   }
 
   private drawPlatforms(): void {
