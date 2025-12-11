@@ -53,7 +53,24 @@ const App: React.FC = () => {
         console.log('🌍 Worlds API response:', worldsData);
         if (worldsData && worldsData.worlds && worldsData.worlds.length > 0) {
           console.log('✅ Loaded', worldsData.worlds.length, 'worlds:', worldsData.worlds);
-          setWorlds(worldsData.worlds);
+          
+          // Fetch levels for each world
+          const worldsWithLevels = await Promise.all(
+            worldsData.worlds.map(async (world) => {
+              try {
+                const levelsData = await gameAPI.getPlayerLevels(world.id);
+                return {
+                  ...world,
+                  levels: levelsData.levels || []
+                };
+              } catch (err) {
+                console.error(`Failed to load levels for world ${world.id}:`, err);
+                return { ...world, levels: [] };
+              }
+            })
+          );
+          
+          setWorlds(worldsWithLevels);
         } else {
           console.warn('⚠️ No worlds data received, using empty list');
           setWorlds([]);
