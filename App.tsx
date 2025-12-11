@@ -53,13 +53,18 @@ const App: React.FC = () => {
         const token = localStorage.getItem('world_hero_jwt_token');
         if (!token) {
           console.log('🔐 No token found, performing demo login...');
-          await gameAPI.loginDemo(loadedUser.displayName || 'Player');
-          console.log('✅ Demo login complete');
+          try {
+            await gameAPI.loginDemo(loadedUser.displayName || 'Player');
+            console.log('✅ Demo login complete');
+          } catch (loginErr) {
+            console.error('❌ Demo login failed:', loginErr);
+          }
         }
         
         const worldsData = await gameAPI.getWorlds();
         console.log('🌍 Worlds API response:', worldsData);
-        if (worldsData && worldsData.worlds && worldsData.worlds.length > 0) {
+        
+        if (worldsData && worldsData.worlds && Array.isArray(worldsData.worlds) && worldsData.worlds.length > 0) {
           console.log('✅ Loaded', worldsData.worlds.length, 'worlds:', worldsData.worlds);
           
           // Fetch levels for each world
@@ -67,6 +72,7 @@ const App: React.FC = () => {
             worldsData.worlds.map(async (world) => {
               try {
                 const levelsData = await gameAPI.getPlayerLevels(world.id);
+                console.log(`✅ Loaded levels for world ${world.id}:`, levelsData);
                 return {
                   ...world,
                   levels: levelsData.levels || []
@@ -78,9 +84,10 @@ const App: React.FC = () => {
             })
           );
           
+          console.log('🎮 Setting worlds with levels:', worldsWithLevels);
           setWorlds(worldsWithLevels);
         } else {
-          console.warn('⚠️ No worlds data received, using empty list');
+          console.warn('⚠️ No worlds data received:', { worldsData, hasWorlds: worldsData?.worlds, isArray: Array.isArray(worldsData?.worlds), length: worldsData?.worlds?.length });
           setWorlds([]);
         }
       } catch (err) {
