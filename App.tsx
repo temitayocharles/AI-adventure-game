@@ -49,6 +49,14 @@ const App: React.FC = () => {
     // Fetch worlds from API
     const fetchWorlds = async () => {
       try {
+        // Auto-login for demo if no token exists
+        const token = localStorage.getItem('world_hero_jwt_token');
+        if (!token) {
+          console.log('🔐 No token found, performing demo login...');
+          await gameAPI.loginDemo(loadedUser.displayName || 'Player');
+          console.log('✅ Demo login complete');
+        }
+        
         const worldsData = await gameAPI.getWorlds();
         console.log('🌍 Worlds API response:', worldsData);
         if (worldsData && worldsData.worlds && worldsData.worlds.length > 0) {
