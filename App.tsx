@@ -67,7 +67,7 @@ const App: React.FC = () => {
     const loadedUser = loadUser();
     setUser(loadedUser);
     
-    // Fetch worlds from API
+    // Fetch worlds from API with fallback to mock data
     const fetchWorlds = async () => {
       try {
         // Auto-login for demo if no token exists
@@ -82,38 +82,96 @@ const App: React.FC = () => {
           }
         }
         
-        const worldsData = await gameAPI.getWorlds();
-        console.log('🌍 Worlds API response:', worldsData);
-        
-        if (worldsData && worldsData.worlds && Array.isArray(worldsData.worlds) && worldsData.worlds.length > 0) {
-          console.log('✅ Loaded', worldsData.worlds.length, 'worlds:', worldsData.worlds);
+        try {
+          const worldsData = await gameAPI.getWorlds();
+          console.log('🌍 Worlds API response:', worldsData);
           
-          // Fetch levels for each world
-          const worldsWithLevels = await Promise.all(
-            worldsData.worlds.map(async (world) => {
-              try {
-                const levelsData = await gameAPI.getPlayerLevels(world.id);
-                console.log(`✅ Loaded levels for world ${world.id}:`, levelsData);
-                return {
-                  ...world,
-                  levels: levelsData.levels || generateMockLevels(world.id)
-                };
-              } catch (err) {
-                console.warn(`Failed to load levels for world ${world.id}, using mock levels:`, err);
-                return { ...world, levels: generateMockLevels(world.id) };
-              }
-            })
-          );
-          
-          console.log('🎮 Setting worlds with levels:', worldsWithLevels);
-          setWorlds(worldsWithLevels);
-        } else {
-          console.warn('⚠️ No worlds data received:', { worldsData, hasWorlds: worldsData?.worlds, isArray: Array.isArray(worldsData?.worlds), length: worldsData?.worlds?.length });
-          setWorlds([]);
+          if (worldsData && worldsData.worlds && Array.isArray(worldsData.worlds) && worldsData.worlds.length > 0) {
+            console.log('✅ Loaded', worldsData.worlds.length, 'worlds from API');
+            
+            // Fetch levels for each world
+            const worldsWithLevels = await Promise.all(
+              worldsData.worlds.map(async (world) => {
+                try {
+                  const levelsData = await gameAPI.getPlayerLevels(world.id);
+                  console.log(`✅ Loaded levels for world ${world.id}:`, levelsData);
+                  return {
+                    ...world,
+                    levels: levelsData.levels || generateMockLevels(world.id)
+                  };
+                } catch (err) {
+                  console.warn(`Failed to load levels for world ${world.id}, using mock levels:`, err);
+                  return { ...world, levels: generateMockLevels(world.id) };
+                }
+              })
+            );
+            
+            console.log('🎮 Setting worlds with levels:', worldsWithLevels);
+            setWorlds(worldsWithLevels);
+            return; // Success - exit early
+          }
+        } catch (apiErr) {
+          console.warn('⚠️ API fetch failed:', apiErr);
         }
+        
+        // Fallback: use mock worlds data
+        console.log('📦 Using fallback mock worlds data');
+        const mockWorldsData: WorldData[] = [
+          {
+            id: '1',
+            name: 'Earthquake Escape',
+            slug: 'earthquake-escape',
+            description: 'Navigate through rumbling terrain and collapsing platforms',
+            icon: '🌍',
+            color: 'from-yellow-400 to-orange-600',
+            levels: generateMockLevels('1')
+          },
+          {
+            id: '2',
+            name: 'Tsunami Tower',
+            slug: 'tsunami-tower',
+            description: 'Climb to safety before the waves arrive',
+            icon: '🌊',
+            color: 'from-blue-400 to-cyan-600',
+            levels: generateMockLevels('2')
+          },
+          {
+            id: '3',
+            name: 'Volcano Valley',
+            slug: 'volcano-valley',
+            description: 'Jump across lava flows and dodge falling rocks',
+            icon: '🌋',
+            color: 'from-red-500 to-orange-700',
+            levels: generateMockLevels('3')
+          },
+          {
+            id: '4',
+            name: 'Desert Drought',
+            slug: 'desert-drought',
+            description: 'Find water and resources in the dry heat',
+            icon: '🏜️',
+            color: 'from-yellow-300 to-amber-600',
+            levels: generateMockLevels('4')
+          }
+        ];
+        
+        console.log('✅ Using mock worlds as fallback');
+        setWorlds(mockWorldsData);
+        
       } catch (err) {
-        console.error('❌ Error loading worlds:', err);
-        setWorlds([]);
+        console.error('❌ Critical error loading worlds:', err);
+        // Even if everything fails, use mock worlds
+        setWorlds([
+          {
+            id: '1',
+            name: 'Earthquake Escape',
+            slug: 'earthquake-escape',
+            description: 'Navigate through rumbling terrain',
+            icon: '🌍',
+            color: 'from-yellow-400 to-orange-600',
+            levels: generateMockLevels('1')
+          }
+        ]);
       } finally {
         setIsLoadingWorlds(false);
         setView(ViewState.WORLD_MAP);
