@@ -3,17 +3,23 @@ services:
     image: postgres:15-alpine
     container_name: worldhero-postgres
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: worldhero_dev_password
+      POSTGRES_USER: worldhero
+      POSTGRES_PASSWORD: worldhero_pass
       POSTGRES_DB: worldhero
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./server/db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
-      - ./server/db/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql
+      - ./server/db/01-schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./server/db/02-seed-worlds.sql:/docker-entrypoint-initdb.d/02-seed-worlds.sql
+      - ./server/db/03-levels.sql:/docker-entrypoint-initdb.d/03-levels.sql
+      - ./server/db/04-player-progress.sql:/docker-entrypoint-initdb.d/04-player-progress.sql
+      - ./server/db/05-jwt-users.sql:/docker-entrypoint-initdb.d/05-jwt-users.sql
+      - ./server/db/06-achievements.sql:/docker-entrypoint-initdb.d/06-achievements.sql
+      - ./server/db/07-player-unlocks.sql:/docker-entrypoint-initdb.d/07-player-unlocks.sql
+      - ./server/db/08-player-worlds.sql:/docker-entrypoint-initdb.d/08-player-worlds.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d worldhero"]
+      test: ["CMD-SHELL", "pg_isready -U worldhero -d worldhero"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -28,12 +34,12 @@ services:
     environment:
       NODE_ENV: development
       PORT: 4000
-      DATABASE_URL: postgresql://postgres:worldhero_dev_password@postgres:5432/worldhero
+      DATABASE_URL: postgresql://worldhero:worldhero_pass@worldhero-postgres:5432/worldhero
       GEMINI_API_KEY: ${GEMINI_API_KEY:-placeholder_key_change_me}
       AI_MODEL: gemini-2.5-flash
       JWT_SECRET: dev_secret_change_in_production
       ADMIN_KEY: dev_admin_key_change_in_production
-      FRONTEND_ORIGIN: http://localhost:5173,http://worldhero-client:5173
+      FRONTEND_ORIGIN: http://localhost:5173
     ports:
       - "4000:4000"
     depends_on:
@@ -56,11 +62,12 @@ services:
     ports:
       - "5173:5173"
     volumes:
-      - ./:/app
+      - .:/app:delegated
       - /app/node_modules
     networks:
       - worldhero-network
     command: npm run dev
+
 
 volumes:
   postgres_data:

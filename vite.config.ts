@@ -8,6 +8,10 @@ export default defineConfig(({ mode }) => {
       server: {
         port: 5173,
         host: '0.0.0.0',
+        allowedHosts: ['client.world-hero-adventures.orb.local', 'localhost', '127.0.0.1'],
+        fs: {
+          allow: ['.']
+        }
       },
       plugins: [react()],
       resolve: {

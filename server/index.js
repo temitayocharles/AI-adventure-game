@@ -7,8 +7,12 @@ import bodyParser from "body-parser";
 import { Pool } from "pg";
 import { v4 as uuidv4 } from "uuid";
 import { GoogleGenAI } from "@google/genai";
-import { authMiddleware, rateLimitMiddleware } from "./middleware/auth.js";
+import { authMiddleware, rateLimitMiddleware, requireAuth } from "./middleware/auth.js";
 import { securityHeadersMiddleware, sanitizeInput, isValidUUID } from "./middleware/security.js";
+import authRoutes from "./routes/auth.js";
+import worldsRoutes from "./routes/worlds.js";
+import levelsRoutes from "./routes/levels.js";
+import progressionRoutes from "./routes/progression.js";
 
 dotenv.config();
 
@@ -25,6 +29,9 @@ const app = express();
 app.use(cors({ origin: FRONTEND_ORIGIN }));
 app.use(securityHeadersMiddleware);
 app.use(bodyParser.json({ limit: "1mb" }));
+
+// Make pool available to routes
+app.locals.pool = pool;
 
 // Create http server and socket.io
 const server = http.createServer(app);
@@ -48,6 +55,12 @@ app.use((err, req, res, next) => {
 
 // Simple health check
 app.get("/api/health", (req, res) => res.json({ status: "ok", ts: new Date() }));
+
+// Mount routes
+app.use("/api/v1/auth", authRoutes);
+app.use("/api/v1/worlds", worldsRoutes);
+app.use("/api/v1/levels", levelsRoutes);
+app.use("/api/v1/players", progressionRoutes);
 
 /**
  * AI proxy endpoint (with safety wrapper + rate limiting)

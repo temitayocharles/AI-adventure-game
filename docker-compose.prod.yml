@@ -12,8 +12,14 @@ services:
       - "5432:5432"
     volumes:
       - postgres_prod_data:/var/lib/postgresql/data
-      - ./server/db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
-      - ./server/db/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql
+      - ./server/db/01-schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./server/db/02-seed-worlds.sql:/docker-entrypoint-initdb.d/02-seed-worlds.sql
+      - ./server/db/03-levels.sql:/docker-entrypoint-initdb.d/03-levels.sql
+      - ./server/db/04-player-progress.sql:/docker-entrypoint-initdb.d/04-player-progress.sql
+      - ./server/db/05-jwt-users.sql:/docker-entrypoint-initdb.d/05-jwt-users.sql
+      - ./server/db/06-achievements.sql:/docker-entrypoint-initdb.d/06-achievements.sql
+      - ./server/db/07-player-unlocks.sql:/docker-entrypoint-initdb.d/07-player-unlocks.sql
+      - ./server/db/08-player-worlds.sql:/docker-entrypoint-initdb.d/08-player-worlds.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d worldhero"]
       interval: 10s
