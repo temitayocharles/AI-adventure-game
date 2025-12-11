@@ -42,6 +42,27 @@ const App: React.FC = () => {
   const [lastCraftState, setLastCraftState] = useState<{ inventory: string[], materials: any } | null>(null);
   const [showAdmin, setShowAdmin] = useState(false);
 
+  // Helper to generate mock levels
+  const generateMockLevels = (worldId: string): LevelData[] => {
+    const difficulties = ['easy', 'medium', 'hard'];
+    return [1, 2, 3].map(idx => ({
+      id: `level_${worldId}_${idx}`,
+      worldId: worldId,
+      title: `Level ${idx}`,
+      name: `Level ${idx}`,
+      difficulty: difficulties[idx - 1] as any,
+      rewardXp: idx * 100,
+      meta: {
+        platforms: [
+          { x: 0, y: 300, w: 800, h: 20 },
+          { x: 150 + (idx - 1) * 50, y: 250, w: 100, h: 20 },
+          { x: 350 + (idx - 1) * 50, y: 200, w: 100, h: 20 }
+        ],
+        goal: { x: 700, y: 50, w: 50, h: 50 }
+      }
+    }));
+  };
+
   useEffect(() => {
     const loadedUser = loadUser();
     setUser(loadedUser);
@@ -75,11 +96,11 @@ const App: React.FC = () => {
                 console.log(`✅ Loaded levels for world ${world.id}:`, levelsData);
                 return {
                   ...world,
-                  levels: levelsData.levels || []
+                  levels: levelsData.levels || generateMockLevels(world.id)
                 };
               } catch (err) {
-                console.error(`Failed to load levels for world ${world.id}:`, err);
-                return { ...world, levels: [] };
+                console.warn(`Failed to load levels for world ${world.id}, using mock levels:`, err);
+                return { ...world, levels: generateMockLevels(world.id) };
               }
             })
           );
