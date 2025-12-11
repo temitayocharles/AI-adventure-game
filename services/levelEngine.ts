@@ -80,17 +80,19 @@ export class LevelEngine {
       hasGoal: !!config.metadata.goal
     });
 
-    // Initialize PixiJS
+    // Initialize PixiJS with PixiJS v7 syntax
     this.app = new PIXI.Application({
-      canvas: config.canvas,
+      view: config.canvas as HTMLCanvasElement,
       width: config.width,
       height: config.height,
-      backgroundColor: 0x87ceeb // sky blue
+      backgroundColor: 0x87ceeb,
+      resolution: 1
     });
 
     console.log('✅ PixiJS app created:', {
       screenWidth: this.app.screen.width,
       screenHeight: this.app.screen.height,
+      view: this.app.view,
       stageChildren: this.app.stage.children.length
     });
 
