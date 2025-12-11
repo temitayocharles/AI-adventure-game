@@ -32,7 +32,7 @@ export const INITIAL_USER: UserProfile = {
   currency: 50,
   inventory: ['flashlight', 'apple', 'map'],
   completedLevels: [],
-  unlockedWorlds: ['w_1'],
+  unlockedWorlds: ['1', '2', '3', '4'],
   theme: 'dark',
   friends: [
     {
