@@ -226,14 +226,16 @@ export const LevelView: React.FC<Props> = ({ level, avatarConfig, settings, onEx
     <div className="h-full flex flex-col relative overflow-hidden">
       {/* Tutorial */}
       {tutorialStep >= 0 && tutorialStep < 3 && (
-        <div className="absolute inset-0 z-50 pointer-events-none">
+        <div className="absolute inset-0 z-50">
            <div className="absolute inset-0 bg-black/20 backdrop-blur-[1px] pointer-events-auto" />
-           <SprinkleTutorial 
-             step={tutorialStep} 
-             totalSteps={3} 
-             text={["Welcome Hero! Reach the goal!", "Use arrow keys to move", "Press space to jump!"][tutorialStep]} 
-             onNext={handleTutorialNext} 
-           />
+           <div className="pointer-events-auto">
+             <SprinkleTutorial 
+               step={tutorialStep} 
+               totalSteps={3} 
+               text={["Welcome Hero! Reach the goal!", "Use arrow keys to move", "Press space to jump!"][tutorialStep]} 
+               onNext={handleTutorialNext} 
+             />
+           </div>
         </div>
       )}
 
