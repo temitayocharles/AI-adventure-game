@@ -95,45 +95,69 @@ export const LevelView: React.FC<Props> = ({ level, avatarConfig, settings, onEx
     };
   }, [orientation]);
   
-  // Fetch level data from API
+  // Fetch level data from API or use provided data
   useEffect(() => {
     const fetchLevelData = async () => {
       try {
-        console.log('📡 Fetching level data for level:', level.id);
+        console.log('📡 Initializing level data for:', level.id, 'meta:', level.meta);
         setLoading(true);
         
-        // Try to fetch full level data from API
-        const res = await fetch(`http://localhost:4000/api/v1/levels/${level.id}`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('world_hero_jwt_token')}`
-          }
-        });
+        // If level already has proper metadata, use it directly
+        if (level.meta && level.meta.platforms && level.meta.goal) {
+          console.log('✅ Using provided level metadata:', level.meta);
+          setCurrentLevelData(level);
+          setLoading(false);
+          return;
+        }
         
-        if (res.ok) {
-          const data = await res.json();
-          console.log('✅ Level data fetched:', data);
-          setCurrentLevelData({
-            ...level,
-            ...(data.level || {}),
-            meta: data.level?.meta || level.meta || {}
+        // Try to fetch full level data from API
+        try {
+          const res = await fetch(`http://localhost:4000/api/v1/levels/${level.id}`, {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('world_hero_jwt_token')}`
+            }
           });
-        } else {
-          console.warn('⚠️ Failed to fetch level details, using defaults');
-          // Use AI service to generate level if API fetch fails
-          try {
-            const generated = await aiService.generateLevel(level.worldId || '1', 'easy');
+          
+          if (res.ok) {
+            const data = await res.json();
+            console.log('✅ Level data fetched from API:', data);
             setCurrentLevelData({
               ...level,
-              meta: generated
+              ...(data.level || {}),
+              meta: data.level?.meta || level.meta || {}
             });
-          } catch (e) {
-            console.warn('⚠️ AI generation failed, using fallback');
-            setCurrentLevelData(level);
+            setLoading(false);
+            return;
           }
+        } catch (e) {
+          console.warn('⚠️ API fetch failed:', e);
+        }
+        
+        // Fallback: use AI service to generate level
+        try {
+          const generated = await aiService.generateLevel(level.worldId || '1', level.difficulty || 'easy');
+          console.log('✅ Generated level from AI:', generated);
+          setCurrentLevelData({
+            ...level,
+            meta: generated
+          });
+        } catch (e) {
+          console.warn('⚠️ AI generation failed, using mock fallback');
+          // Last resort fallback
+          setCurrentLevelData({
+            ...level,
+            meta: {
+              platforms: [
+                { x: 0, y: 300, w: 800, h: 20 },
+                { x: 150, y: 250, w: 100, h: 20 },
+                { x: 350, y: 200, w: 100, h: 20 }
+              ],
+              goal: { x: 700, y: 50, w: 50, h: 50 }
+            }
+          });
         }
       } catch (err) {
-        console.error('❌ Error fetching level data:', err);
-        // Fallback to current level
+        console.error('❌ Critical error in level initialization:', err);
         setCurrentLevelData(level);
       } finally {
         setLoading(false);
