@@ -13,6 +13,8 @@ import authRoutes from "./routes/auth.js";
 import worldsRoutes from "./routes/worlds.js";
 import levelsRoutes from "./routes/levels.js";
 import progressionRoutes from "./routes/progression.js";
+import aiRoutes from "./routes/ai.js";
+import initMultiplayer from "./multiplayer.js";
 
 dotenv.config();
 
@@ -61,6 +63,10 @@ app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/worlds", worldsRoutes);
 app.use("/api/v1/levels", levelsRoutes);
 app.use("/api/v1/players", progressionRoutes);
+app.use("/api/v1/ai", aiRoutes);
+
+// Initialize multiplayer (WebSocket)
+initMultiplayer(io, pool);
 
 /**
  * AI proxy endpoint (with safety wrapper + rate limiting)
@@ -96,8 +102,27 @@ app.post("/api/v1/ai/query", rateLimitMiddleware, asyncHandler(async (req, res) 
 
     return res.json({ reply });
   } catch (e) {
-    log("error", "AI proxy error", { userId, error: e.message });
-    return res.status(500).json({ error: "AI service temporarily unavailable" });
+    log("error", "AI proxy error, using fallback", { userId, error: e.message });
+    
+    // Provide sensible fallback based on prompt type
+    let fallbackReply = "I'm having a bit of trouble thinking right now, but you're doing great!";
+    
+    if (promptType === 'quest') {
+      const worldName = promptPayload?.worldName || 'Adventure';
+      fallbackReply = JSON.stringify({
+        title: `${worldName} Quest`,
+        steps: [
+          'Explore the challenges ahead',
+          'Use your skills to overcome obstacles',
+          'Reach your goal'
+        ],
+        funFact: 'Every adventure is unique - you\'re making it special!'
+      });
+    } else if (promptType === 'chat') {
+      fallbackReply = "I'm here to help! What would you like to know?";
+    }
+    
+    return res.json({ reply: fallbackReply, fallback: true });
   }
 }));
 

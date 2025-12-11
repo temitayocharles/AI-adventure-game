@@ -3,9 +3,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { LevelData, AvatarConfig, WorldData, WeatherType, Season, GameSettings } from '../types';
 import { Button } from '../components/Button';
 import { SprinkleTutorial } from '../components/SprinkleTutorial';
-import { ArrowLeft, CheckCircle, Cloud, Sun, Moon, Loader2 } from 'lucide-react';
+import { NPCDialog } from '../components/NPCDialog';
+import { ArrowLeft, CheckCircle, Cloud, Sun, Moon, Loader2, MessageSquare } from 'lucide-react';
 import { playSfx } from '../services/soundService';
 import { gameAPI } from '../services/gameAPI';
+import { aiService } from '../services/aiService';
 import { LevelEngine } from '../services/levelEngine';
 import { WORLDS } from '../services/mockData';
 import { PixelPlayer, PixelMonkey, PixelBanana, PixelKey, PixelGem, PixelCactus, PixelTree, PixelWood, PixelMetal } from '../components/PixelAssets';
@@ -32,6 +34,10 @@ export const LevelView: React.FC<Props> = ({ level, avatarConfig, settings, onEx
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<LevelEngine | null>(null);
   const [isGameActive, setIsGameActive] = useState(true);
+  const [showNPC, setShowNPC] = useState(false);
+  const [npcType, setNpcType] = useState<'sprinkle' | 'elder' | 'merchant' | 'guardian'>('sprinkle');
+  const [levelStartTime, setLevelStartTime] = useState<number>(Date.now());
+  const [attemptCount, setAttemptCount] = useState(0);
   
   // Initialize LevelEngine
   useEffect(() => {
@@ -73,13 +79,26 @@ export const LevelView: React.FC<Props> = ({ level, avatarConfig, settings, onEx
     setIsGameActive(false);
     playSfx('win');
     
-    console.log('🎉 Goal reached! Level:', currentLevelData.title);
+    const completionTime = (Date.now() - levelStartTime) / 1000;
+    console.log('🎉 Goal reached! Level:', currentLevelData.title, `Time: ${completionTime}s, Attempts: ${attemptCount}`);
     
     try {
       // Call API to mark level as completed
       const result = await gameAPI.completeLevel(String(currentLevelData.id));
-      
       console.log('✅ Level completion recorded:', result);
+      
+      // Calculate adaptive difficulty based on performance
+      try {
+        const difficulty = await aiService.getAdaptiveDifficulty(
+          currentLevelData.id,
+          Math.round(completionTime),
+          attemptCount,
+          5 // Default player skill level
+        );
+        console.log('📊 Adaptive difficulty:', difficulty.recommendation);
+      } catch (diffErr) {
+        console.warn('ℹ️ Adaptive difficulty calculation skipped:', diffErr);
+      }
       
       // Trigger level complete callback
       setTimeout(() => {
@@ -195,6 +214,15 @@ export const LevelView: React.FC<Props> = ({ level, avatarConfig, settings, onEx
       <div className="h-16 bg-slate-900/80 backdrop-blur-md flex items-center justify-between px-4 border-b border-slate-700 z-40 absolute top-0 w-full shadow-lg">
         <Button size="sm" variant="glass" onClick={onExit} icon={<ArrowLeft size={16} />}>Exit</Button>
         <div className="flex items-center gap-4">
+          <Button 
+            size="sm" 
+            variant="glass" 
+            onClick={() => setShowNPC(true)}
+            icon={<MessageSquare size={16} />}
+            title="Talk to Sprinkle for hints"
+          >
+            Help
+          </Button>
           <div className="bg-black/30 px-3 py-1 rounded-full flex items-center gap-2 text-white text-xs font-bold border border-white/10">
             {gameTime > 6 && gameTime < 18 ? <Sun size={14} className="text-yellow-400" /> : <Moon size={14} className="text-blue-200" />}
             {Math.floor(gameTime)}:00
@@ -244,6 +272,15 @@ export const LevelView: React.FC<Props> = ({ level, avatarConfig, settings, onEx
       <div className="h-16 bg-slate-900/80 backdrop-blur-md flex items-center justify-between px-4 border-t border-slate-700 z-40 shadow-lg">
         <Button size="sm" variant="glass" onClick={onExit} icon={<ArrowLeft size={16} />}>Exit</Button>
         <div className="flex items-center gap-4">
+          <Button 
+            size="sm" 
+            variant="glass" 
+            onClick={() => setShowNPC(true)}
+            icon={<MessageSquare size={16} />}
+            title="Talk to Sprinkle for hints"
+          >
+            Help
+          </Button>
           <div className="bg-black/30 px-3 py-1 rounded-full flex items-center gap-2 text-white text-xs font-bold border border-white/10">
             {gameTime > 6 && gameTime < 18 ? <Sun size={14} className="text-yellow-400" /> : <Moon size={14} className="text-blue-200" />}
             {Math.floor(gameTime)}:00
@@ -251,10 +288,18 @@ export const LevelView: React.FC<Props> = ({ level, avatarConfig, settings, onEx
           <div className="text-white font-bold hidden sm:block drop-shadow-md">{currentLevelData.title}</div>
         </div>
       </div>
-    </div>
-  );
-};        />
-      ))}
+
+      {/* NPC Dialog */}
+      <NPCDialog 
+        npcId={npcType}
+        isOpen={showNPC}
+        onClose={() => setShowNPC(false)}
+        context={{
+          currentLevel: currentLevelData.id,
+          worldId: currentLevelData.worldId,
+          playerStats: { skill: 5, attempts: attemptCount }
+        }}
+      />
     </div>
   );
 };
