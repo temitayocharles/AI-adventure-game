@@ -298,7 +298,7 @@ export const LevelView: React.FC<Props> = ({ level, avatarConfig, settings, onEx
   }
 
   return (
-    <div className="h-full flex flex-col relative overflow-hidden">
+    <div className="w-screen h-screen flex flex-col relative overflow-hidden fixed inset-0">
       {/* Tutorial */}
       {tutorialStep >= 0 && tutorialStep < 3 && (
         <div className="absolute inset-0 z-50">
@@ -340,7 +340,7 @@ export const LevelView: React.FC<Props> = ({ level, avatarConfig, settings, onEx
       {/* Canvas Container - Responsive */}
       <div
         ref={canvasContainerRef}
-        className={`flex-1 relative overflow-hidden ${isMobile ? 'mt-16' : ''}`}
+        className={`flex-1 relative overflow-hidden w-full`}
         style={{
           backgroundColor: '#87ceeb',
           display: 'flex',
@@ -348,17 +348,15 @@ export const LevelView: React.FC<Props> = ({ level, avatarConfig, settings, onEx
           justifyContent: 'center',
           width: '100%',
           height: '100%',
-          minHeight: isMobile ? '300px' : '500px'
+          flex: 1
         }}
       >
         <canvas
           ref={canvasRef}
-          className="block"
+          className="block w-full h-full"
           style={{
             width: '100%',
             height: '100%',
-            maxWidth: '100%',
-            maxHeight: '100%',
             imageRendering: 'pixelated',
             display: 'block'
           }}
