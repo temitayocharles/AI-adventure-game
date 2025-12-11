@@ -95,6 +95,54 @@ export const LevelView: React.FC<Props> = ({ level, avatarConfig, settings, onEx
     };
   }, [orientation]);
   
+  // Fetch level data from API
+  useEffect(() => {
+    const fetchLevelData = async () => {
+      try {
+        console.log('📡 Fetching level data for level:', level.id);
+        setLoading(true);
+        
+        // Try to fetch full level data from API
+        const res = await fetch(`http://localhost:4000/api/v1/levels/${level.id}`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('world_hero_jwt_token')}`
+          }
+        });
+        
+        if (res.ok) {
+          const data = await res.json();
+          console.log('✅ Level data fetched:', data);
+          setCurrentLevelData({
+            ...level,
+            ...(data.level || {}),
+            meta: data.level?.meta || level.meta || {}
+          });
+        } else {
+          console.warn('⚠️ Failed to fetch level details, using defaults');
+          // Use AI service to generate level if API fetch fails
+          try {
+            const generated = await aiService.generateLevel(level.worldId || '1', 'easy');
+            setCurrentLevelData({
+              ...level,
+              meta: generated
+            });
+          } catch (e) {
+            console.warn('⚠️ AI generation failed, using fallback');
+            setCurrentLevelData(level);
+          }
+        }
+      } catch (err) {
+        console.error('❌ Error fetching level data:', err);
+        // Fallback to current level
+        setCurrentLevelData(level);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchLevelData();
+  }, [level]);
+  
   // Initialize LevelEngine
   useEffect(() => {
     if (!canvasRef.current || !isGameActive) return;
