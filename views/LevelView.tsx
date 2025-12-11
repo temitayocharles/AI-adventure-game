@@ -169,7 +169,7 @@ export const LevelView: React.FC<Props> = ({ level, avatarConfig, settings, onEx
   
   // Initialize LevelEngine
   useEffect(() => {
-    if (!canvasRef.current || !isGameActive) return;
+    if (!canvasRef.current || !isGameActive || !canvasContainerRef.current) return;
 
     const levelMetadata = currentLevelData.meta || {
       platforms: [
@@ -180,27 +180,43 @@ export const LevelView: React.FC<Props> = ({ level, avatarConfig, settings, onEx
       goal: { x: 700, y: 50, w: 50, h: 50 }
     };
 
-    try {
-      // Use a sensible default size - will be set by PixiJS
-      const width = 1024;
-      const height = 768;
-      
-      console.log('🎮 Canvas dimensions for LevelEngine:', { width, height, meta: levelMetadata });
-      
-      engineRef.current = new LevelEngine({
-        canvas: canvasRef.current,
-        width,
-        height,
-        metadata: levelMetadata,
-        onGoalReached: handleGoalReached
-      });
+    // Wait for canvas container to have dimensions
+    const initEngine = () => {
+      const container = canvasContainerRef.current;
+      if (!container || !canvasRef.current) return;
 
-      console.log('✅ LevelEngine initialized for level:', currentLevelData.title);
-    } catch (err) {
-      console.error('❌ Failed to initialize LevelEngine:', err);
-    }
+      const width = container.clientWidth;
+      const height = container.clientHeight;
+
+      // Don't initialize if dimensions are still zero
+      if (width === 0 || height === 0) {
+        console.warn('⚠️ Container has zero dimensions, retrying...');
+        setTimeout(initEngine, 100);
+        return;
+      }
+
+      console.log('🎮 Canvas dimensions for LevelEngine:', { width, height, meta: levelMetadata });
+
+      try {
+        engineRef.current = new LevelEngine({
+          canvas: canvasRef.current,
+          width,
+          height,
+          metadata: levelMetadata,
+          onGoalReached: handleGoalReached
+        });
+
+        console.log('✅ LevelEngine initialized for level:', currentLevelData.title);
+      } catch (err) {
+        console.error('❌ Failed to initialize LevelEngine:', err);
+      }
+    };
+
+    // Start initialization after a short delay to ensure layout is complete
+    const timeoutId = setTimeout(initEngine, 50);
 
     return () => {
+      clearTimeout(timeoutId);
       if (engineRef.current) {
         engineRef.current.destroy();
         engineRef.current = null;
