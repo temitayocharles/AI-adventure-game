@@ -181,8 +181,11 @@ export const LevelView: React.FC<Props> = ({ level, avatarConfig, settings, onEx
     };
 
     try {
-      const width = canvasRef.current.clientWidth;
-      const height = canvasRef.current.clientHeight;
+      // Use a sensible default size - will be set by PixiJS
+      const width = 1024;
+      const height = 768;
+      
+      console.log('🎮 Canvas dimensions for LevelEngine:', { width, height, meta: levelMetadata });
       
       engineRef.current = new LevelEngine({
         canvas: canvasRef.current,
@@ -342,16 +345,22 @@ export const LevelView: React.FC<Props> = ({ level, avatarConfig, settings, onEx
           backgroundColor: '#87ceeb',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'center'
+          justifyContent: 'center',
+          width: '100%',
+          height: '100%',
+          minHeight: isMobile ? '300px' : '500px'
         }}
       >
         <canvas
           ref={canvasRef}
           className="block"
           style={{
+            width: '100%',
+            height: '100%',
             maxWidth: '100%',
             maxHeight: '100%',
-            imageRendering: 'pixelated'
+            imageRendering: 'pixelated',
+            display: 'block'
           }}
         />
       </div>

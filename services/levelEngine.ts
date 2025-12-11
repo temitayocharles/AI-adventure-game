@@ -68,12 +68,30 @@ export class LevelEngine {
   constructor(config: LevelEngineConfig) {
     this.onGoalReached = config.onGoalReached || null;
 
+    console.log('🎮 LevelEngine Constructor:', {
+      canvasWidth: config.width,
+      canvasHeight: config.height,
+      canvasElement: config.canvas.tagName,
+      canvasClientSize: {
+        width: config.canvas.clientWidth,
+        height: config.canvas.clientHeight
+      },
+      platformCount: config.metadata.platforms?.length || 0,
+      hasGoal: !!config.metadata.goal
+    });
+
     // Initialize PixiJS
     this.app = new PIXI.Application({
       canvas: config.canvas,
       width: config.width,
       height: config.height,
       backgroundColor: 0x87ceeb // sky blue
+    });
+
+    console.log('✅ PixiJS app created:', {
+      screenWidth: this.app.screen.width,
+      screenHeight: this.app.screen.height,
+      stageChildren: this.app.stage.children.length
     });
 
     // Parse platforms from level metadata
@@ -87,9 +105,12 @@ export class LevelEngine {
       this.platforms = config.metadata.platforms;
     }
 
+    console.log('📦 Platforms loaded:', this.platforms.length);
+
     // Set goal
     if (config.metadata.goal) {
       this.goal = config.metadata.goal;
+      console.log('🎯 Goal set:', this.goal);
     }
 
     // Create player
@@ -99,13 +120,18 @@ export class LevelEngine {
     this.player.endFill();
     this.player.position.set(this.playerPos.x, this.playerPos.y);
     this.app.stage.addChild(this.player);
+    console.log('👤 Player created at:', this.playerPos);
 
     // Draw platforms
+    console.log('🖌️ Drawing platforms...');
     this.drawPlatforms();
+    console.log('✅ Platforms drawn, stage children:', this.app.stage.children.length);
 
     // Draw goal
     if (this.goal) {
+      console.log('🖌️ Drawing goal...');
       this.drawGoal();
+      console.log('✅ Goal drawn, stage children:', this.app.stage.children.length);
     }
 
     // Setup input
@@ -113,6 +139,13 @@ export class LevelEngine {
 
     // Start game loop
     this.app.ticker.add(() => this.update());
+    console.log('✅ Game loop started');
+    
+    // Force initial render
+    setTimeout(() => {
+      this.app.render();
+      console.log('✅ Initial render complete');
+    }, 100);
   }
 
   private drawPlatforms(): void {

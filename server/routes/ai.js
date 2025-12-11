@@ -127,7 +127,7 @@ router.post('/npc-chat', requireAuth, async (req, res) => {
       'guardian': 'You are a guardian spirit. Offer cryptic wisdom and encouragement.'
     };
 
-    const personality = npcPersonality[npcId as keyof typeof npcPersonality] || npcPersonality['sprinkle'];
+    const personality = npcPersonality[npcId] || npcPersonality['sprinkle'];
 
     const prompt = `${personality}
 
