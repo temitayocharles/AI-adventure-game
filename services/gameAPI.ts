@@ -243,7 +243,7 @@ export const gameAPI = {
    * Protected: requires JWT token
    */
   async completeLevel(levelId: string | number) {
-    const url = `${API_BASE}/api/v1/players/me/levels/${levelId}/complete`;
+    const url = `${API_BASE}/players/me/levels/${levelId}/complete`;
     console.log(`✅ Completing level:`, url);
 
     try {
