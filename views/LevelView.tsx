@@ -1,10 +1,12 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { LevelData, AvatarConfig, WorldData, WeatherType, Season, GameSettings } from '../types';
 import { Button } from '../components/Button';
 import { SprinkleTutorial } from '../components/SprinkleTutorial';
 import { ArrowLeft, CheckCircle, Cloud, Sun, Moon, Loader2 } from 'lucide-react';
 import { playSfx } from '../services/soundService';
+import { gameAPI } from '../services/gameAPI';
+import { LevelEngine } from '../services/levelEngine';
 import { WORLDS } from '../services/mockData';
 import { PixelPlayer, PixelMonkey, PixelBanana, PixelKey, PixelGem, PixelCactus, PixelTree, PixelWood, PixelMetal } from '../components/PixelAssets';
 
@@ -27,6 +29,67 @@ export const LevelView: React.FC<Props> = ({ level, avatarConfig, settings, onEx
   const [tutorialStep, setTutorialStep] = useState(isFirstTime ? 0 : -1);
   const [gameTime, setGameTime] = useState(8); 
   const [lootMessage, setLootMessage] = useState<string | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const engineRef = useRef<LevelEngine | null>(null);
+  const [isGameActive, setIsGameActive] = useState(true);
+  
+  // Initialize LevelEngine
+  useEffect(() => {
+    if (!canvasRef.current || !isGameActive) return;
+
+    const levelMetadata = currentLevelData.meta || {
+      platforms: [
+        { x: 0, y: 300, w: 800, h: 20 },
+        { x: 150, y: 250, w: 100, h: 20 },
+        { x: 350, y: 200, w: 100, h: 20 }
+      ],
+      goal: { x: 700, y: 50, w: 50, h: 50 }
+    };
+
+    try {
+      engineRef.current = new LevelEngine({
+        canvas: canvasRef.current,
+        width: canvasRef.current.clientWidth,
+        height: canvasRef.current.clientHeight,
+        metadata: levelMetadata,
+        onGoalReached: handleGoalReached
+      });
+
+      console.log('✅ LevelEngine initialized for level:', currentLevelData.title);
+    } catch (err) {
+      console.error('❌ Failed to initialize LevelEngine:', err);
+    }
+
+    return () => {
+      if (engineRef.current) {
+        engineRef.current.destroy();
+        engineRef.current = null;
+      }
+    };
+  }, [currentLevelData, isGameActive]);
+
+  // Handle goal reached (level completion)
+  const handleGoalReached = async () => {
+    setIsGameActive(false);
+    playSfx('win');
+    
+    console.log('🎉 Goal reached! Level:', currentLevelData.title);
+    
+    try {
+      // Call API to mark level as completed
+      const result = await gameAPI.completeLevel(String(currentLevelData.id));
+      
+      console.log('✅ Level completion recorded:', result);
+      
+      // Trigger level complete callback
+      setTimeout(() => {
+        onComplete({ wood: 0, stone: 0, metal: 0 });
+      }, 1500);
+    } catch (err) {
+      console.error('❌ Failed to complete level:', err);
+      onComplete({ wood: 0, stone: 0, metal: 0 }); // Complete anyway
+    }
+  };
   
   // Load AI level if dynamic - DISABLED (server-side generation recommended instead)
   useEffect(() => {
@@ -144,105 +207,53 @@ export const LevelView: React.FC<Props> = ({ level, avatarConfig, settings, onEx
       </div>
 
       {/* Game World */}
-      <div 
-        className={`flex-1 relative cursor-crosshair overflow-hidden touch-none select-none bg-gradient-to-b transition-colors duration-[2000ms] ${getSkyColor()}`}
-        onClick={handleAreaClick}
-      >
-        {/* Clouds */}
-        <div className="absolute inset-0 opacity-30 pointer-events-none">
-           <Cloud className="absolute top-10 left-10 text-white w-24 h-24 animate-float" style={{ animationDuration: '8s' }} />
-        </div>
-
-        {/* Effects Layer (Weather/Seasons) */}
-        {settings.enableEffects && (
-          <AtmosphereOverlay weather={worldData.weather} season={worldData.season} />
-        )}
-
-        {/* Ground */}
-        <div className="absolute bottom-0 w-full h-1/2 bg-gradient-to-b from-emerald-900/20 to-black/40 pointer-events-none"></div>
-
-        {/* Loot Toast */}
-        {lootMessage && (
-          <div className="absolute top-24 left-1/2 -translate-x-1/2 bg-black/60 text-hero-yellow font-black px-4 py-2 rounded-full animate-bounce z-50">
-            {lootMessage}
+      <div className="flex-1 relative overflow-hidden touch-none select-none bg-gradient-to-b from-sky-400 to-blue-500 z-10">
+        {/* Tutorial */}
+        {tutorialStep >= 0 && tutorialStep < 3 && (
+          <div className="absolute inset-0 z-50 pointer-events-none">
+            <div className="absolute inset-0 bg-black/20 backdrop-blur-[1px] pointer-events-auto" />
+            <SprinkleTutorial 
+              step={tutorialStep} 
+              totalSteps={3} 
+              text={["Use Arrow Keys or WASD to move", "Press Space to jump", "Reach the gold square to win!"][tutorialStep]} 
+              onNext={handleTutorialNext} 
+            />
           </div>
         )}
 
-        {/* Interactive Scenery (Lootable) */}
-        <div 
-          onClick={(e) => handleLoot(e, 'wood')}
-          className="absolute top-1/4 left-10 w-16 h-16 opacity-90 cursor-pointer hover:scale-105 transition-transform"
-        >
-           {worldData.id === 'w_4' ? <PixelCactus className="w-full h-full" /> : <PixelTree className="w-full h-full" />}
-        </div>
-        <div 
-          onClick={(e) => handleLoot(e, 'metal')}
-          className="absolute bottom-1/3 right-10 w-20 h-20 opacity-90 cursor-pointer hover:scale-105 transition-transform"
-        >
-           <PixelMetal className="w-full h-full opacity-50" />
-        </div>
+        {/* PixiJS Canvas */}
+        <canvas 
+          ref={canvasRef}
+          className="w-full h-full absolute inset-0"
+          style={{ display: 'block', background: 'transparent' }}
+        />
 
-        {/* Player */}
-        <div 
-          className="absolute w-16 h-16 transition-all duration-500 ease-out transform -translate-x-1/2 -translate-y-1/2 z-20 drop-shadow-2xl"
-          style={{ left: `${playerPos.x}%`, top: `${playerPos.y}%` }}
-        >
-          <PixelPlayer className="w-full h-full" config={avatarConfig} />
-        </div>
-
-        {/* Items */}
-        {!foundItems.includes('banana') && (
-          <div onClick={(e) => handleItemClick(e, 'banana')} className="absolute top-1/3 left-1/3 w-12 h-12 animate-bounce cursor-pointer z-30 filter drop-shadow-lg">
-            <PixelBanana className="w-full h-full" />
+        {/* Completion Overlay */}
+        {!isGameActive && (
+          <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-40">
+            <div className="bg-slate-900 border-2 border-hero-green rounded-lg p-8 text-center">
+              <CheckCircle className="w-16 h-16 text-hero-green mx-auto mb-4" />
+              <h2 className="text-2xl font-bold text-white mb-2">Level Complete!</h2>
+              <p className="text-slate-300">Returning to world map...</p>
+            </div>
           </div>
         )}
-        {!foundItems.includes('key') && (
-          <div onClick={(e) => handleItemClick(e, 'key')} className="absolute top-2/3 left-3/4 w-10 h-10 animate-pulse cursor-pointer z-30 filter drop-shadow-lg">
-            <PixelKey className="w-full h-full" />
-          </div>
-        )}
-        {!foundItems.includes('gem') && (
-          <div onClick={(e) => handleItemClick(e, 'gem')} className="absolute top-1/2 left-1/2 w-10 h-10 animate-spin-slow cursor-pointer z-30 filter drop-shadow-lg">
-            <PixelGem className="w-full h-full" />
-          </div>
-        )}
+      </div>
 
-        {/* Night Overlay */}
-        {(gameTime >= 20 || gameTime < 5) && (
-           <div className="absolute inset-0 bg-indigo-950/60 pointer-events-none z-30 mix-blend-multiply" />
-        )}
-        {(gameTime >= 19 || gameTime < 6) && (
-          <div 
-            className="absolute w-64 h-64 bg-yellow-200/20 rounded-full blur-2xl pointer-events-none z-30 mix-blend-overlay transition-all duration-500"
-             style={{ left: `${playerPos.x}%`, top: `${playerPos.y}%`, transform: 'translate(-50%, -50%)' }}
-          />
-        )}
+      {/* HUD */}
+      <div className="h-16 bg-slate-900/80 backdrop-blur-md flex items-center justify-between px-4 border-t border-slate-700 z-40 shadow-lg">
+        <Button size="sm" variant="glass" onClick={onExit} icon={<ArrowLeft size={16} />}>Exit</Button>
+        <div className="flex items-center gap-4">
+          <div className="bg-black/30 px-3 py-1 rounded-full flex items-center gap-2 text-white text-xs font-bold border border-white/10">
+            {gameTime > 6 && gameTime < 18 ? <Sun size={14} className="text-yellow-400" /> : <Moon size={14} className="text-blue-200" />}
+            {Math.floor(gameTime)}:00
+          </div>
+          <div className="text-white font-bold hidden sm:block drop-shadow-md">{currentLevelData.title}</div>
+        </div>
       </div>
     </div>
   );
-};
-
-const AtmosphereOverlay: React.FC<{weather: WeatherType, season: Season}> = ({ weather, season }) => {
-  if (weather === 'clear' && season !== 'autumn') return null;
-  // Simple particle system for demo
-  return (
-    <div className="absolute inset-0 pointer-events-none overflow-hidden z-20">
-      {Array.from({ length: 15 }).map((_, i) => (
-        <div 
-          key={i}
-          className={`absolute top-0 ${
-            weather === 'rain' ? 'w-[1px] h-4 bg-blue-400/50 animate-weather-fall' : 
-            weather === 'snow' ? 'w-2 h-2 bg-white/80 rounded-full animate-weather-fall' : 
-            weather === 'ash' ? 'w-2 h-2 bg-gray-400 rounded-full animate-weather-fall' :
-            season === 'autumn' ? 'w-3 h-3 bg-orange-500 rounded-tl-lg rounded-br-lg animate-leaves' :
-            ''
-          }`}
-          style={{
-            left: `${Math.random() * 100}%`,
-            animationDuration: `${2 + Math.random() * 3}s`,
-            animationDelay: `${Math.random() * 5}s`
-          }}
-        />
+};        />
       ))}
     </div>
   );
