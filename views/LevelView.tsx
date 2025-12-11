@@ -1,16 +1,16 @@
-
 import React, { useState, useEffect, useRef } from 'react';
-import { LevelData, AvatarConfig, WorldData, WeatherType, Season, GameSettings } from '../types';
+import { LevelData, AvatarConfig, WorldData, GameSettings } from '../types';
 import { Button } from '../components/Button';
 import { SprinkleTutorial } from '../components/SprinkleTutorial';
 import { NPCDialog } from '../components/NPCDialog';
-import { ArrowLeft, CheckCircle, Cloud, Sun, Moon, Loader2, MessageSquare } from 'lucide-react';
+import { MobileControls } from '../components/MobileControls';
+import { ArrowLeft, Sun, Moon, Loader2, MessageSquare, Smartphone } from 'lucide-react';
 import { playSfx } from '../services/soundService';
 import { gameAPI } from '../services/gameAPI';
 import { aiService } from '../services/aiService';
 import { LevelEngine } from '../services/levelEngine';
+import { ResponsiveCanvasManager } from '../services/responsiveCanvas';
 import { WORLDS } from '../services/mockData';
-import { PixelPlayer, PixelMonkey, PixelBanana, PixelKey, PixelGem, PixelCactus, PixelTree, PixelWood, PixelMetal } from '../components/PixelAssets';
 
 interface Props {
   level: LevelData;
@@ -27,17 +27,73 @@ export const LevelView: React.FC<Props> = ({ level, avatarConfig, settings, onEx
   const [currentLevelData, setCurrentLevelData] = useState<LevelData>(level);
   const [progress, setProgress] = useState(0);
   const [foundItems, setFoundItems] = useState<string[]>([]);
-  const [playerPos, setPlayerPos] = useState({ x: 50, y: 50 });
   const [tutorialStep, setTutorialStep] = useState(isFirstTime ? 0 : -1);
   const [gameTime, setGameTime] = useState(8); 
-  const [lootMessage, setLootMessage] = useState<string | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const canvasContainerRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<LevelEngine | null>(null);
+  const responsiveManagerRef = useRef<ResponsiveCanvasManager | null>(null);
   const [isGameActive, setIsGameActive] = useState(true);
   const [showNPC, setShowNPC] = useState(false);
   const [npcType, setNpcType] = useState<'sprinkle' | 'elder' | 'merchant' | 'guardian'>('sprinkle');
   const [levelStartTime, setLevelStartTime] = useState<number>(Date.now());
   const [attemptCount, setAttemptCount] = useState(0);
+  
+  // Mobile/Responsive State
+  const [isMobile, setIsMobile] = useState(false);
+  const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('landscape');
+  const [showMobileControls, setShowMobileControls] = useState(false);
+  
+  // Detect mobile and setup responsive canvas
+  useEffect(() => {
+    const detectMobile = () => {
+      const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+        navigator.userAgent
+      ) || window.innerWidth <= 768;
+      setIsMobile(isMobileDevice);
+      setOrientation(window.innerHeight > window.innerWidth ? 'portrait' : 'landscape');
+      setShowMobileControls(isMobileDevice);
+    };
+
+    detectMobile();
+    window.addEventListener('resize', detectMobile);
+    window.addEventListener('orientationchange', detectMobile);
+
+    return () => {
+      window.removeEventListener('resize', detectMobile);
+      window.removeEventListener('orientationchange', detectMobile);
+    };
+  }, []);
+
+  // Initialize responsive canvas manager
+  useEffect(() => {
+    if (!canvasRef.current) return;
+
+    responsiveManagerRef.current = new ResponsiveCanvasManager({
+      minWidth: 320,
+      minHeight: 240,
+      maxWidth: 1920,
+      maxHeight: 1440,
+      aspectRatio: orientation === 'portrait' ? 0.75 : 16 / 9
+    });
+
+    const state = responsiveManagerRef.current.initialize(canvasRef.current);
+    console.log('✅ Responsive canvas initialized:', state);
+
+    responsiveManagerRef.current.onOrientationChange(newState => {
+      setOrientation(newState.orientation);
+      if (engineRef.current) {
+        engineRef.current.destroy();
+        engineRef.current = null;
+      }
+    });
+
+    return () => {
+      if (responsiveManagerRef.current) {
+        responsiveManagerRef.current.destroy();
+      }
+    };
+  }, [orientation]);
   
   // Initialize LevelEngine
   useEffect(() => {
@@ -53,10 +109,13 @@ export const LevelView: React.FC<Props> = ({ level, avatarConfig, settings, onEx
     };
 
     try {
+      const width = canvasRef.current.clientWidth;
+      const height = canvasRef.current.clientHeight;
+      
       engineRef.current = new LevelEngine({
         canvas: canvasRef.current,
-        width: canvasRef.current.clientWidth,
-        height: canvasRef.current.clientHeight,
+        width,
+        height,
         metadata: levelMetadata,
         onGoalReached: handleGoalReached
       });
@@ -74,53 +133,67 @@ export const LevelView: React.FC<Props> = ({ level, avatarConfig, settings, onEx
     };
   }, [currentLevelData, isGameActive]);
 
-  // Handle goal reached (level completion)
+  // Handle goal reached
   const handleGoalReached = async () => {
     setIsGameActive(false);
     playSfx('win');
     
     const completionTime = (Date.now() - levelStartTime) / 1000;
-    console.log('🎉 Goal reached! Level:', currentLevelData.title, `Time: ${completionTime}s, Attempts: ${attemptCount}`);
+    console.log('🎉 Goal reached! Level:', currentLevelData.title, `Time: ${completionTime}s`);
     
     try {
-      // Call API to mark level as completed
       const result = await gameAPI.completeLevel(String(currentLevelData.id));
       console.log('✅ Level completion recorded:', result);
       
-      // Calculate adaptive difficulty based on performance
       try {
         const difficulty = await aiService.getAdaptiveDifficulty(
           currentLevelData.id,
           Math.round(completionTime),
           attemptCount,
-          5 // Default player skill level
+          5
         );
         console.log('📊 Adaptive difficulty:', difficulty.recommendation);
       } catch (diffErr) {
-        console.warn('ℹ️ Adaptive difficulty calculation skipped:', diffErr);
+        console.warn('ℹ️ Adaptive difficulty calculation skipped');
       }
       
-      // Trigger level complete callback
       setTimeout(() => {
         onComplete({ wood: 0, stone: 0, metal: 0 });
       }, 1500);
     } catch (err) {
       console.error('❌ Failed to complete level:', err);
-      onComplete({ wood: 0, stone: 0, metal: 0 }); // Complete anyway
+      onComplete({ wood: 0, stone: 0, metal: 0 });
+    }
+  };
+
+  // Mobile control handlers
+  const handleMobileLeft = () => {
+    if (engineRef.current) {
+      engineRef.current.moveLeft();
+    }
+  };
+
+  const handleMobileRight = () => {
+    if (engineRef.current) {
+      engineRef.current.moveRight();
+    }
+  };
+
+  const handleMobileJump = () => {
+    if (engineRef.current) {
+      engineRef.current.jumpAction();
+    }
+  };
+
+  const handleMobileStop = () => {
+    if (engineRef.current) {
+      engineRef.current.stop();
     }
   };
   
-  // Load AI level if dynamic - DISABLED (server-side generation recommended instead)
+  // Load level
   useEffect(() => {
-    const loadLevel = async () => {
-       if (level.worldId !== 'dynamic' && !level.isGenerated) return;
-       
-       // Note: Dynamic level generation via AI is now server-side.
-       // For demo, we'll just use the client-provided level.
-       // To enable: uncomment server call to /api/v1/ai/generateLevel
-       setCurrentLevelData(level);
-    };
-    loadLevel();
+    setCurrentLevelData(level);
   }, [level]);
 
   // World Context
@@ -137,52 +210,7 @@ export const LevelView: React.FC<Props> = ({ level, avatarConfig, settings, onEx
     return () => clearInterval(timer);
   }, []);
 
-  // Sky Color
-  const getSkyColor = () => {
-    if (gameTime >= 6 && gameTime < 17) return 'from-sky-300 to-blue-500'; 
-    if (gameTime >= 17 && gameTime < 20) return 'from-orange-400 to-purple-600'; 
-    if (gameTime >= 20 || gameTime < 5) return 'from-slate-900 to-slate-800'; 
-    return 'from-indigo-400 to-sky-300';
-  };
-
   const handleTutorialNext = () => setTutorialStep(prev => prev + 1);
-
-  const handleAreaClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (tutorialStep === 0) return;
-    if (tutorialStep === 1) handleTutorialNext();
-
-    playSfx('step');
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 100;
-    const y = ((e.clientY - rect.top) / rect.height) * 100;
-    setPlayerPos({ x, y });
-  };
-
-  const handleLoot = (e: React.MouseEvent, type: 'wood' | 'stone' | 'metal') => {
-    e.stopPropagation();
-    playSfx('collect');
-    onCollectResource(type);
-    setLootMessage(`+1 ${type.toUpperCase()}`);
-    setTimeout(() => setLootMessage(null), 1000);
-  };
-
-  const handleItemClick = (e: React.MouseEvent, item: string) => {
-    e.stopPropagation();
-    if (tutorialStep >= 0 && tutorialStep < 2) return;
-    if (tutorialStep === 2) setTutorialStep(-1);
-    if (foundItems.includes(item)) return;
-
-    playSfx('collect');
-    const newFound = [...foundItems, item];
-    setFoundItems(newFound);
-    const newProgress = (newFound.length / 3) * 100; 
-    setProgress(newProgress);
-    
-    if (newProgress >= 100) {
-      setTimeout(() => playSfx('win'), 500);
-      setTimeout(() => onComplete({wood: 0, stone: 0, metal: 0}), 2000); // Pass session loot here ideally
-    }
-  };
 
   if (loading) {
     return (
@@ -196,7 +224,6 @@ export const LevelView: React.FC<Props> = ({ level, avatarConfig, settings, onEx
 
   return (
     <div className="h-full flex flex-col relative overflow-hidden">
-      
       {/* Tutorial */}
       {tutorialStep >= 0 && tutorialStep < 3 && (
         <div className="absolute inset-0 z-50 pointer-events-none">
@@ -204,90 +231,68 @@ export const LevelView: React.FC<Props> = ({ level, avatarConfig, settings, onEx
            <SprinkleTutorial 
              step={tutorialStep} 
              totalSteps={3} 
-             text={["Welcome Hero! Tap ground to move.", "Find items to win!", "Click trees for wood!"][tutorialStep]} 
+             text={["Welcome Hero! Reach the goal!", "Use arrow keys to move", "Press space to jump!"][tutorialStep]} 
              onNext={handleTutorialNext} 
            />
         </div>
       )}
 
       {/* HUD */}
-      <div className="h-16 bg-slate-900/80 backdrop-blur-md flex items-center justify-between px-4 border-b border-slate-700 z-40 absolute top-0 w-full shadow-lg">
-        <Button size="sm" variant="glass" onClick={onExit} icon={<ArrowLeft size={16} />}>Exit</Button>
+      <div className={`h-16 bg-slate-900/80 backdrop-blur-md flex items-center justify-between px-4 border-b border-slate-700 z-40 ${isMobile ? 'absolute top-0 w-full shadow-lg' : 'relative shadow-lg'}`}>
+        <Button size="sm" variant="glass" onClick={onExit} icon={<ArrowLeft size={16} />}>
+          {isMobile ? '' : 'Exit'}
+        </Button>
         <div className="flex items-center gap-4">
+          {isMobile && <Smartphone size={16} className="text-hero-blue" />}
+          <div className="flex gap-2 items-center">
+            <Sun size={16} className="text-yellow-400" />
+            <span className="text-white text-sm font-mono">{Math.floor(gameTime)}:00</span>
+          </div>
           <Button 
             size="sm" 
             variant="glass" 
             onClick={() => setShowNPC(true)}
             icon={<MessageSquare size={16} />}
-            title="Talk to Sprinkle for hints"
+            title="Talk to Sprinkle"
           >
             Help
           </Button>
-          <div className="bg-black/30 px-3 py-1 rounded-full flex items-center gap-2 text-white text-xs font-bold border border-white/10">
-            {gameTime > 6 && gameTime < 18 ? <Sun size={14} className="text-yellow-400" /> : <Moon size={14} className="text-blue-200" />}
-            {Math.floor(gameTime)}:00
-          </div>
-          <div className="text-white font-bold hidden sm:block drop-shadow-md">{currentLevelData.title}</div>
-          <div className="w-24 h-4 bg-slate-700 rounded-full overflow-hidden border border-slate-600">
-            <div className="h-full bg-hero-green transition-all duration-500" style={{ width: `${progress}%` }} />
-          </div>
         </div>
       </div>
 
-      {/* Game World */}
-      <div className="flex-1 relative overflow-hidden touch-none select-none bg-gradient-to-b from-sky-400 to-blue-500 z-10">
-        {/* Tutorial */}
-        {tutorialStep >= 0 && tutorialStep < 3 && (
-          <div className="absolute inset-0 z-50 pointer-events-none">
-            <div className="absolute inset-0 bg-black/20 backdrop-blur-[1px] pointer-events-auto" />
-            <SprinkleTutorial 
-              step={tutorialStep} 
-              totalSteps={3} 
-              text={["Use Arrow Keys or WASD to move", "Press Space to jump", "Reach the gold square to win!"][tutorialStep]} 
-              onNext={handleTutorialNext} 
-            />
-          </div>
-        )}
-
-        {/* PixiJS Canvas */}
-        <canvas 
+      {/* Canvas Container - Responsive */}
+      <div
+        ref={canvasContainerRef}
+        className={`flex-1 relative overflow-hidden ${isMobile ? 'mt-16' : ''}`}
+        style={{
+          backgroundColor: '#87ceeb',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}
+      >
+        <canvas
           ref={canvasRef}
-          className="w-full h-full absolute inset-0"
-          style={{ display: 'block', background: 'transparent' }}
+          className="block"
+          style={{
+            maxWidth: '100%',
+            maxHeight: '100%',
+            imageRendering: 'pixelated'
+          }}
         />
-
-        {/* Completion Overlay */}
-        {!isGameActive && (
-          <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-40">
-            <div className="bg-slate-900 border-2 border-hero-green rounded-lg p-8 text-center">
-              <CheckCircle className="w-16 h-16 text-hero-green mx-auto mb-4" />
-              <h2 className="text-2xl font-bold text-white mb-2">Level Complete!</h2>
-              <p className="text-slate-300">Returning to world map...</p>
-            </div>
-          </div>
-        )}
       </div>
 
-      {/* HUD */}
-      <div className="h-16 bg-slate-900/80 backdrop-blur-md flex items-center justify-between px-4 border-t border-slate-700 z-40 shadow-lg">
-        <Button size="sm" variant="glass" onClick={onExit} icon={<ArrowLeft size={16} />}>Exit</Button>
-        <div className="flex items-center gap-4">
-          <Button 
-            size="sm" 
-            variant="glass" 
-            onClick={() => setShowNPC(true)}
-            icon={<MessageSquare size={16} />}
-            title="Talk to Sprinkle for hints"
-          >
-            Help
-          </Button>
-          <div className="bg-black/30 px-3 py-1 rounded-full flex items-center gap-2 text-white text-xs font-bold border border-white/10">
-            {gameTime > 6 && gameTime < 18 ? <Sun size={14} className="text-yellow-400" /> : <Moon size={14} className="text-blue-200" />}
-            {Math.floor(gameTime)}:00
-          </div>
-          <div className="text-white font-bold hidden sm:block drop-shadow-md">{currentLevelData.title}</div>
-        </div>
-      </div>
+      {/* Mobile Controls */}
+      {showMobileControls && isGameActive && (
+        <MobileControls
+          enabled={isMobile}
+          orientation={orientation}
+          onLeft={handleMobileLeft}
+          onRight={handleMobileRight}
+          onJump={handleMobileJump}
+          onStop={handleMobileStop}
+        />
+      )}
 
       {/* NPC Dialog */}
       <NPCDialog 
@@ -303,3 +308,5 @@ export const LevelView: React.FC<Props> = ({ level, avatarConfig, settings, onEx
     </div>
   );
 };
+
+export default LevelView;

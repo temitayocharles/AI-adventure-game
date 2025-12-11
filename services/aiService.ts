@@ -77,7 +77,7 @@ export class AIService {
   private token: string | null = null;
 
   constructor() {
-    this.apiBase = import.meta.env.VITE_API_BASE || 'http://localhost:4000';
+    this.apiBase = (import.meta.env as any).VITE_API_BASE || 'http://localhost:4000';
   }
 
   /**
@@ -115,7 +115,10 @@ export class AIService {
       const fallbackLevel = generateFallbackLevel(difficulty, worldId);
       
       return {
-        level: fallbackLevel,
+        platforms: fallbackLevel.platforms || [],
+        goal: fallbackLevel.goal || { x: 700, y: 50, w: 50, h: 50 },
+        hazards: fallbackLevel.hazards || [],
+        meta: fallbackLevel.meta || { theme: 'default' },
         generated: false,
         timestamp: new Date().toISOString()
       };

@@ -3,6 +3,7 @@
  * Test suite for LevelEngine - metadata loading, physics, collision, and goal detection
  */
 
+import { describe, it, expect, beforeEach } from 'vitest';
 import { LevelEngine, LevelMetadata } from '../services/levelEngine';
 
 describe('LevelEngine', () => {

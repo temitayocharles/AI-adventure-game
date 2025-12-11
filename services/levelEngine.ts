@@ -259,6 +259,29 @@ export class LevelEngine {
     this.isJumping = false;
   }
 
+  /**
+   * Mobile control methods
+   */
+  public moveLeft(): void {
+    this.keys['left'] = true;
+  }
+
+  public moveRight(): void {
+    this.keys['right'] = true;
+  }
+
+  public jumpAction(): void {
+    if (!this.isJumping) {
+      this.playerVel.y = -JUMP_FORCE;
+      this.isJumping = true;
+    }
+  }
+
+  public stop(): void {
+    this.keys['left'] = false;
+    this.keys['right'] = false;
+  }
+
   public destroy(): void {
     window.removeEventListener('keydown', () => {});
     window.removeEventListener('keyup', () => {});
