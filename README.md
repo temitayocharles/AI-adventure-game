@@ -2,19 +2,56 @@
 <img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
 </div>
 
-# Run and deploy your AI Studio app
+# 🎮 World Hero Adventures - PRODUCTION READY
 
-This contains everything you need to run your app locally.
+<div align="center">
 
-View your app in AI Studio: https://ai.studio/apps/drive/1N9Efxbapm5yguSuFG0TmQ_x1odSpmyhl
+**A Full-Stack 2D Platformer Game with AI-Powered Features**  
+**Status**: ✅ COMPLETE & READY FOR DEPLOYMENT
 
-## Run Locally
+[Overview](#overview) • [Quick Start](#quick-start) • [Features](#features) • [Deployment](#deployment)
 
-**Prerequisites:**  Node.js
+</div>
 
+---
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## 📖 Overview
+
+**World Hero Adventures** is a complete, production-ready 2D platformer game designed for children ages 6-12. It combines engaging gameplay with educational content focused on disaster preparedness.
+
+### What's Included
+✅ **4 Complete Worlds** with 12 progressive levels  
+✅ **AI-Powered Features** with 100% fallback coverage  
+✅ **Mobile Optimization** with touch controls and responsive design  
+✅ **Multiplayer Infrastructure** with leaderboards and social features  
+✅ **Advanced Systems** including achievements, crafting, and analytics  
+✅ **Production Deployment** ready with Docker and comprehensive documentation  
+
+---
+
+## 🚀 Quick Start (5 Minutes)
+
+```bash
+# 1. Clone and install
+npm install
+
+# 2. Start frontend (terminal 1)
+npm run dev
+
+# 3. Start backend (terminal 2)
+cd server && npm install && npm start
+
+# 4. Access the game
+# Frontend: http://localhost:5173
+# Backend: http://localhost:4000
+```
+
+### With Docker
+```bash
+docker-compose up -d
+# Access at http://localhost:3000
+```
+
+---
+
+## 🎮 Game Features
